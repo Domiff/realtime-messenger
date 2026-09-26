@@ -47,7 +47,7 @@ async def test_detail_chat_not_found(chat_repo):
 
 async def test_detail_chat_contains_messages(chat_repo, message_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await message_repo.create(chat_id=chat.id, data=MessageIn(**make_message()))
+    await message_repo.create(data=MessageIn(**make_message(chat_id=chat.id)))
 
     detail = await chat_repo.detail(chat_id=chat.id)
 
@@ -97,7 +97,7 @@ async def test_delete_chat(chat_repo):
 async def test_create_message(chat_repo, message_repo, data):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
 
-    message = await message_repo.create(chat_id=chat.id, data=MessageIn(**data))
+    message = await message_repo.create(data=MessageIn(**data | {"chat_id": chat.id}))
 
     assert message is not None
     assert message.text == data["text"]
@@ -106,8 +106,8 @@ async def test_create_message(chat_repo, message_repo, data):
 
 async def test_list_messages(chat_repo, message_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await message_repo.create(chat_id=chat.id, data=MessageIn(**make_message()))
-    await message_repo.create(chat_id=chat.id, data=MessageIn(**make_message()))
+    await message_repo.create(data=MessageIn(**make_message(chat_id=chat.id)))
+    await message_repo.create(data=MessageIn(**make_message(chat_id=chat.id)))
 
     messages = await message_repo.list(chat_id=chat.id)
 
@@ -117,7 +117,7 @@ async def test_list_messages(chat_repo, message_repo):
 
 async def test_detail_message(chat_repo, message_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    created = await message_repo.create(chat_id=chat.id, data=MessageIn(**make_message()))
+    created = await message_repo.create(data=MessageIn(**make_message(chat_id=chat.id)))
 
     message = await message_repo.detail(message_id=created.id)
 
@@ -127,10 +127,11 @@ async def test_detail_message(chat_repo, message_repo):
 
 async def test_update_message(chat_repo, message_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    message = await message_repo.create(chat_id=chat.id, data=MessageIn(**make_message()))
+    message = await message_repo.create(data=MessageIn(**make_message(chat_id=chat.id)))
 
     updated = await message_repo.update(
-        message_id=message.id, data=MessageIn(text="Edited")
+        message_id=message.id,
+        data=MessageIn(text="Edited", sender_id=message.sender_id),
     )
 
     assert updated.text == "Edited"
@@ -139,7 +140,7 @@ async def test_update_message(chat_repo, message_repo):
 
 async def test_delete_message(chat_repo, message_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    message = await message_repo.create(chat_id=chat.id, data=MessageIn(**make_message()))
+    message = await message_repo.create(data=MessageIn(**make_message(chat_id=chat.id)))
 
     await message_repo.delete(message_id=message.id)
 
@@ -157,7 +158,7 @@ async def test_delete_message(chat_repo, message_repo):
 async def test_add_member(chat_repo, member_repo, data):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
 
-    member = await member_repo.create(chat_id=chat.id, data=MemberIn(**data))
+    member = await member_repo.create(data=MemberIn(**data | {"chat_id": chat.id}))
 
     assert member is not None
     assert member.chat_id == chat.id
@@ -166,18 +167,18 @@ async def test_add_member(chat_repo, member_repo, data):
 
 async def test_add_member_twice(chat_repo, member_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=1)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=1, chat_id=chat.id)))
 
     with pytest.raises(IntegrityError):
         await member_repo.create(
-            chat_id=chat.id, data=MemberIn(**make_member(user_id=1))
+            data=MemberIn(**make_member(user_id=1, chat_id=chat.id))
         )
 
 
 async def test_list_members(chat_repo, member_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=1)))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=2)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=1, chat_id=chat.id)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=2, chat_id=chat.id)))
 
     members = await member_repo.list(chat_id=chat.id)
 
@@ -186,7 +187,7 @@ async def test_list_members(chat_repo, member_repo):
 
 async def test_detail_member(chat_repo, member_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=7)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=7, chat_id=chat.id)))
 
     member = await member_repo.detail(chat_id=chat.id, user_id=7)
 
@@ -196,7 +197,7 @@ async def test_detail_member(chat_repo, member_repo):
 
 async def test_exists_member(chat_repo, member_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=7)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=7, chat_id=chat.id)))
 
     assert await member_repo.exists(chat_id=chat.id, user_id=7) is True
     assert await member_repo.exists(chat_id=chat.id, user_id=8) is False
@@ -204,7 +205,7 @@ async def test_exists_member(chat_repo, member_repo):
 
 async def test_update_member_role(chat_repo, member_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=7)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=7, chat_id=chat.id)))
 
     updated = await member_repo.update(
         chat_id=chat.id, user_id=7, data=MemberIn(role=ChatRole.ADMIN)
@@ -216,7 +217,7 @@ async def test_update_member_role(chat_repo, member_repo):
 
 async def test_delete_member(chat_repo, member_repo):
     chat = await chat_repo.create(data=ChatIn(**make_chat()))
-    await member_repo.create(chat_id=chat.id, data=MemberIn(**make_member(user_id=7)))
+    await member_repo.create(data=MemberIn(**make_member(user_id=7, chat_id=chat.id)))
 
     await member_repo.delete(chat_id=chat.id, user_id=7)
 

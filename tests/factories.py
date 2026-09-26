@@ -37,9 +37,15 @@ def make_chat():
     return ChatIn(name=_faker.word(), type=ChatType.GROUP).to_dict()
 
 
-def make_message():
-    return MessageIn(text=_faker.sentence()).to_dict()
+def make_message(chat_id: int | None = None, sender_id: int = 1):
+    return MessageIn(
+        text=_faker.sentence(), chat_id=chat_id, sender_id=sender_id
+    ).to_dict()
 
 
-def make_member(user_id: int = 1, role: ChatRole = ChatRole.MEMBER):
-    return MemberIn(user_id=user_id, role=role).to_dict()
+def make_member(
+    user_id: int = 1,
+    chat_id: int | None = None,
+    role: ChatRole = ChatRole.MEMBER,
+):
+    return MemberIn(user_id=user_id, chat_id=chat_id, role=role).to_dict()

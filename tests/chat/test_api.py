@@ -89,7 +89,7 @@ async def test_delete_chat_not_found(authorized_client):
 
 async def test_list_messages(authorized_client, message_repo):
     chat = await create_chat(authorized_client)
-    await message_repo.create(chat_id=chat["id"], data=MessageIn(**make_message()))
+    await message_repo.create(data=MessageIn(**make_message(chat_id=chat["id"])))
 
     response = await authorized_client.get(f"/chat/{chat['id']}/messages")
 
