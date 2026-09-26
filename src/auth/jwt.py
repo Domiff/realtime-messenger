@@ -4,7 +4,7 @@ from typing import Literal
 
 import jwt
 
-from src.auth.exceptions import Forbidden, Unauthorized
+from src.auth.exceptions import Unauthorized
 from src.auth.schemas import PairTokens
 from src.core.config import settings
 from src.core.logging import get_logger
@@ -51,7 +51,7 @@ class JWT:
             raise Unauthorized("Token expired") from e
         except jwt.PyJWTError as e:
             logger.warning("Invalid token", err=str(e))
-            raise Forbidden("Invalid token") from e
+            raise Unauthorized("Invalid token") from e
         logger.info("Token decoded")
         return payload
 

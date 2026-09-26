@@ -4,20 +4,22 @@ from fastapi import Depends, Response
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth.exceptions import Forbidden
+from src.auth.exceptions import Unauthorized
 from src.auth.jwt import get_jwt
 from src.auth.repository import get_user_repo
 from src.auth.schemas import CredentialsSchema, TokenOut
 from src.auth.utils import hash_password, verify_password
 from src.core.config import settings
 from src.core.database import SessionDep
-from src.core.exceptions import AlreadyExists, DoesNotExists
+from src.core.exceptions import AlreadyExists
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class AuthService:
+    _DUMMY_PASSWORD_HASH = hash_password("dummy")
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = get_user_repo(self.session)
@@ -64,11 +66,12 @@ class AuthService:
         try:
             user = await self.repo.get_by_email(credentials.email)
         except NoResultFound as e:
-            logger.error("User does not exist", email=credentials.email)
-            raise DoesNotExists() from e
+            verify_password(credentials.password, self._DUMMY_PASSWORD_HASH)
+            logger.warning("Login failed: user does not exist", email=credentials.email)
+            raise Unauthorized("Invalid credentials") from e
         if not verify_password(credentials.password, user.password):
-            logger.error("Password mismatch", user_id=user.id)
-            raise Forbidden("Password mismatch")
+            logger.warning("Login failed: password mismatch", user_id=user.id)
+            raise Unauthorized("Invalid credentials")
         logger.info("User logged in", user_id=user.id)
         return self._authenticate(user.id, response)
 

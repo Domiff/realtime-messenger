@@ -4,7 +4,6 @@ from fastapi import Depends, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.exc import NoResultFound
 
-from src.auth.exceptions import Unauthorized
 from src.auth.jwt import JWT, get_jwt
 from src.auth.repository import UserRepository, get_user_repo
 from src.auth.schemas import UserSchema
@@ -14,7 +13,7 @@ from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-token_schema = HTTPBearer(auto_error=False)
+token_schema = HTTPBearer()
 
 
 def get_user_repo_dep(session: SessionDep) -> UserRepository:
@@ -32,8 +31,6 @@ async def get_current_user(
     user_repo: UserRepositoryDep,
 ) -> UserSchema:
     payload = jwt.get_payload(token.credentials)
-    if not payload:
-        raise Unauthorized()
     user_id: str = payload.get("sub")
     try:
         user = await user_repo.get_by_id(int(user_id))
