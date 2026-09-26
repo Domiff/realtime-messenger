@@ -2,7 +2,7 @@ from fastapi import Request
 from pwdlib.exceptions import UnknownHashError
 from sqladmin.authentication import AuthenticationBackend
 
-from src.core.security import check_password
+from src.auth.utils import verify_password
 
 from src.auth.models import User
 from src.auth.repository import get_user_repo
@@ -29,7 +29,7 @@ class AdminAuth(AuthenticationBackend):
             return False
 
         try:
-            is_valid = check_password(password, account.password)
+            is_valid = verify_password(password, account.password)
         except UnknownHashError:
             return False
 

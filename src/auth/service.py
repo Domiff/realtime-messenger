@@ -8,7 +8,7 @@ from src.auth.exceptions import Forbidden
 from src.auth.jwt import get_jwt
 from src.auth.repository import get_user_repo
 from src.auth.schemas import CredentialsSchema, TokenOut
-from src.auth.utils import get_password_hash, verify_password
+from src.auth.utils import hash_password, verify_password
 from src.core.config import settings
 from src.core.database import SessionDep
 from src.core.exceptions import AlreadyExists, DoesNotExists
@@ -47,7 +47,7 @@ class AuthService:
         data = {
             "username": credentials.username,
             "email": credentials.email,
-            "password": get_password_hash(credentials.password),
+            "password": hash_password(credentials.password),
         }
         try:
             user = await self.repo.create(data)

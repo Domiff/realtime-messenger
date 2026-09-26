@@ -7,7 +7,7 @@ from src.admin.base import BaseAdmin
 from src.auth.models import User
 from src.auth.repository import get_user_repo
 from src.core.database import new_session
-from src.core.security import hash_password
+from src.auth.utils import hash_password
 
 
 class UserAdmin(BaseAdmin, model=User):

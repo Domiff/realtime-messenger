@@ -1,15 +1,10 @@
 import pytest
 from fastapi import Response
-from pwdlib import PasswordHash
 
 from src.auth.schemas import CredentialsSchema, TokenOut
+from src.auth.utils import hash_password
 from tests.factories import make_credentials
 from tests.utils import get_refresh_token
-
-
-def hash_pwd(password):
-    password_hash = PasswordHash.recommended()
-    return password_hash.hash(password)
 
 
 @pytest.fixture
@@ -44,7 +39,7 @@ async def test_register(auth_service, credentials, response):
 async def test_login(user_repo, auth_service, credentials, response):
     create_data = {
         "username": credentials["username"],
-        "password": hash_pwd(credentials["password"]),
+        "password": hash_password(credentials["password"]),
         "email": credentials["email"],
     }
     await user_repo.create(create_data)
@@ -67,7 +62,7 @@ async def test_login(user_repo, auth_service, credentials, response):
 async def test_logout(user_repo, auth_service, credentials, response):
     create_data = {
         "username": credentials["username"],
-        "password": hash_pwd(credentials["password"]),
+        "password": hash_password(credentials["password"]),
         "email": credentials["email"],
     }
     await user_repo.create(create_data)
