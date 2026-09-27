@@ -12,6 +12,7 @@ A social network backend built with FastAPI: stateless JWT authentication (RS256
 | ORM & migrations | SQLAlchemy 2 (async), Alembic                   |
 | Realtime         | WebSockets (FastAPI) + Redis Pub/Sub            |
 | Authentication   | PyJWT (RS256), pwdlib (argon2)                  |
+| Request security | fastapi-guard (rate limiting, WAF-style checks) |
 | CRUD layer       | FastCRUD                                        |
 | Admin panel      | SQLAdmin                                        |
 | Templates        | Jinja2                                          |
@@ -30,6 +31,7 @@ src/
 │   ├── repository.py   #   data access layer
 │   ├── jwt.py          #   token issuing & validation
 │   ├── depends.py      #   get_current_user dependency
+│   ├── utils.py        #   password hashing (argon2)
 │   ├── admin.py        #   SQLAdmin view for User
 │   └── models.py       #   User model
 ├── chat/               # Chat domain
@@ -49,7 +51,7 @@ src/
     ├── database.py     #   async engine, Base, naming convention
     ├── redis.py        #   Redis client, cache and pub/sub wrappers
     ├── schemas.py      #   BaseSchema, DateTimeSchema
-    ├── security.py     #   password hashing helpers
+    ├── security.py     #   fastapi-guard config, middleware and decorator
     ├── http.py         #   shared async HTTP client
     ├── s3.py           #   S3-compatible object storage client
     ├── templates.py    #   Jinja2 environment
@@ -60,6 +62,7 @@ templates/              # Jinja2 templates
 static/                 # Static assets, mounted at /static
 tests/                  # pytest suite (auth, chat)
 keys/                   # RSA key pair for JWT signing (never commit)
+logs/                   # security.log, written by fastapi-guard (gitignored)
 ```
 
 ## Getting Started
@@ -114,9 +117,15 @@ POSTGRES_PASSWORD=<strong-password>
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
 
-# Redis (chat pub/sub)
+# Redis (chat pub/sub, cache, rate limit counters)
 REDIS_PORT=6379
 REDIS_DB=0
+
+# Request security (fastapi-guard)
+ENABLE_RATE_LIMITING=true
+RATE_LIMIT=10
+RATE_LIMIT_WINDOW=60
+ENABLE_REDIS=true
 
 # Admin panel (required — no default)
 ADMIN_SECRET_KEY=<random-32-bytes>
@@ -139,7 +148,11 @@ Configuration reference:
 | `ALLOW_ORIGINS`     | — (required) | CORS: allowed origins (JSON list)                        |
 | `ALLOW_METHODS`     | — (required) | CORS: allowed HTTP methods (JSON list)                   |
 | `POSTGRES_*`        | see config   | PostgreSQL connection parameters                         |
-| `REDIS_PORT`, `REDIS_DB` | see config | Redis connection, used for chat pub/sub. Host is derived from `IS_DOCKERIZED` (`redis` vs `localhost`), not directly configurable |
+| `REDIS_PORT`, `REDIS_DB` | see config | Redis connection, used for chat pub/sub, caching and rate limit counters. Host is derived from `IS_DOCKERIZED` (`redis` vs `localhost`), not directly configurable |
+| `ENABLE_RATE_LIMITING` | `true` | Global switch; also required for the per-endpoint limits to apply |
+| `RATE_LIMIT`, `RATE_LIMIT_WINDOW` | `10`, `60` | Global budget per client IP, shared across all paths |
+| `ENABLE_REDIS` | `true` | Keep rate limit counters in Redis. With `false` they are per-process, so the limit is multiplied by the number of workers |
+| `REDIS_PREFIX`, `CUSTOM_LOG_FILE` | see config | Key prefix for guard's Redis keys, and where it writes its security log |
 | `ADMIN_SECRET_KEY`  | — (required) | Session signing key for the admin panel                  |
 | `S3_*`              | — (required) | Object storage endpoint, credentials, region, bucket     |
 | `TIMEOUT`, `CONNECT`, `MAX_CONNECTIONS`, `MAX_KEEPALIVE_CONNECTIONS`, `KEEPALIVE_EXPIRY` | see config | Shared async HTTP client tuning |
@@ -172,12 +185,16 @@ Interactive API docs are available at `/docs` only when `IS_DEBUG=true`.
 
 ### Authentication
 
-| Method | Path             | Description                                          |
-| ------ | ---------------- | ---------------------------------------------------- |
-| POST   | `/auth/register` | Create an account → access token + refresh cookie    |
-| POST   | `/auth/login`    | Authenticate with email/password                     |
-| POST   | `/auth/refresh`  | Rotate the token pair using the refresh cookie       |
-| POST   | `/auth/logout`   | Clear the refresh cookie                             |
+| Method | Path             | Description                                          | Rate limit |
+| ------ | ---------------- | ---------------------------------------------------- | ---------- |
+| POST   | `/auth/register` | Create an account → access token + refresh cookie    | 3 / min    |
+| POST   | `/auth/login`    | Authenticate with email/password                     | 3 / min    |
+| POST   | `/auth/refresh`  | Rotate the token pair using the refresh cookie       | 20 / min   |
+| POST   | `/auth/logout`   | Clear the refresh cookie                             | global     |
+
+Limits are per client IP and enforced by fastapi-guard; exceeding one returns `429`.
+`/auth/refresh` is deliberately looser because clients call it on their own when an access
+token expires, and several open tabs would otherwise trip a tight limit at once.
 
 ### Chat
 
@@ -227,6 +244,9 @@ socket is listening on and forwards back out verbatim.
 - The **access token** is returned in the response body and must be sent as `Authorization: Bearer <token>`.
 - The **refresh token** is stored in an `httponly`, `secure`, `samesite=strict` cookie and never exposed to client-side code.
 - Every `/auth/refresh` call rotates both tokens.
+- Every authentication failure answers `401` with the same body — a missing or invalid
+  token, an unknown email and a wrong password are indistinguishable to the client, so
+  the API cannot be used to enumerate accounts.
 
 ## Database Migrations
 
@@ -270,3 +290,5 @@ uv run pre-commit install
 - [ ] `/admin` restricted at the network layer or behind SSO
 - [ ] S3 credentials scoped to the single bucket the application uses
 - [ ] `/health` wired to your orchestrator's liveness/readiness probes
+- [ ] `ENABLE_REDIS=true` so rate limits are shared across workers, not per-process
+- [ ] Reverse proxy passes the real client IP, otherwise every request is rate-limited as one client
