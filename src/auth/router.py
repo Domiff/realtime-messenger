@@ -3,12 +3,14 @@ from fastapi.security import APIKeyCookie
 
 from src.auth.schemas import CredentialsSchema
 from src.auth.service import AuthServiceDep
+from src.core.security import guard
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 refresh_token_schema = APIKeyCookie(name="refresh_token", auto_error=True)
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
+@guard.rate_limit(requests=3, window=60)
 async def register(
     data: CredentialsSchema, service: AuthServiceDep, response: Response
 ):
@@ -16,6 +18,7 @@ async def register(
 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
+@guard.rate_limit(requests=3, window=60)
 async def login(data: CredentialsSchema, service: AuthServiceDep, response: Response):
     return await service.login(data, response)
 
@@ -26,6 +29,7 @@ async def logout(service: AuthServiceDep, response: Response):
 
 
 @router.post("/refresh", status_code=status.HTTP_200_OK)
+@guard.rate_limit(requests=20, window=60)
 async def refresh(
     service: AuthServiceDep,
     response: Response,
