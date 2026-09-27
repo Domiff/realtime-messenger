@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from src.core.security import setup_security
 from src.auth.admin import UserAdmin
 from src.admin.setup import setup_admin
 from src.auth.router import router as auth_router
@@ -65,6 +66,8 @@ def create_app() -> FastAPI:
 
 
 def setup_middlewares(app: FastAPI) -> None:
+    setup_security(app)
+    logger.info("Security middleware configured")
     app.add_middleware(
         CORSMiddleware,
         allow_credentials=settings.cors.ALLOW_CREDENTIALS,

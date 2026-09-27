@@ -93,6 +93,15 @@ class RedisSettings(AppSettings):
         )
 
 
+class SecuritySettings(AppSettings):
+    ENABLE_RATE_LIMITING: bool = True
+    RATE_LIMIT: int = 10
+    RATE_LIMIT_WINDOW: int = 60
+    ENABLE_REDIS: bool = True
+    REDIS_PREFIX: str = "social-network:guard:"
+    CUSTOM_LOG_FILE: str = "logs/security.log"
+
+
 class Settings(AppSettings):
     app: AppSettings = AppSettings()
     db: DBSettings = DBSettings()
@@ -102,6 +111,7 @@ class Settings(AppSettings):
     s3: S3Settings = S3Settings()
     admin: AdminSettings = AdminSettings()
     redis: RedisSettings = RedisSettings()
+    security: SecuritySettings = SecuritySettings()
 
 
 settings = Settings()
