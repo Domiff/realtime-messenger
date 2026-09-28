@@ -20,6 +20,7 @@ A social network backend built with FastAPI: stateless JWT authentication (RS256
 | Logging          | structlog (structured JSON logs)                |
 | Testing          | pytest, pytest-asyncio, Faker                   |
 | Code quality     | ruff, pre-commit                                |
+| Containerization | Docker, Docker Compose (Postgres + Redis)       |
 
 ## Project Layout
 
@@ -63,16 +64,18 @@ static/                 # Static assets, mounted at /static
 tests/                  # pytest suite (auth, chat)
 keys/                   # RSA key pair for JWT signing (never commit)
 logs/                   # security.log, written by fastapi-guard (gitignored)
+Dockerfile              # two-stage build, production image
+docker-compose.yml      # backend + Postgres + Redis
+run.sh                  # container entrypoint: migrations, then the server
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.14+
-- [uv](https://docs.astral.sh/uv/)
 - OpenSSL (key generation)
-- PostgreSQL 15+ (production mode)
+- Either Docker with Compose v2, or Python 3.14+ with [uv](https://docs.astral.sh/uv/)
+  and a local PostgreSQL 15+ / Redis 7+
 
 ### 1. Install dependencies
 
@@ -114,7 +117,7 @@ ALLOW_METHODS=["GET","POST","PUT","PATCH","DELETE"]
 POSTGRES_DB=social_network
 POSTGRES_USER=social_network
 POSTGRES_PASSWORD=<strong-password>
-POSTGRES_HOST=db
+POSTGRES_HOST=pg
 POSTGRES_PORT=5432
 
 # Redis (chat pub/sub, cache, rate limit counters)
@@ -147,7 +150,7 @@ Configuration reference:
 | `ALLOW_CREDENTIALS` | — (required) | CORS: allow cookies/credentials                          |
 | `ALLOW_ORIGINS`     | — (required) | CORS: allowed origins (JSON list)                        |
 | `ALLOW_METHODS`     | — (required) | CORS: allowed HTTP methods (JSON list)                   |
-| `POSTGRES_*`        | see config   | PostgreSQL connection parameters                         |
+| `POSTGRES_*`        | see config   | PostgreSQL connection parameters. Under Compose, `POSTGRES_HOST` must be the service name (`pg`) |
 | `REDIS_PORT`, `REDIS_DB` | see config | Redis connection, used for chat pub/sub, caching and rate limit counters. Host is derived from `IS_DOCKERIZED` (`redis` vs `localhost`), not directly configurable |
 | `ENABLE_RATE_LIMITING` | `true` | Global switch; also required for the per-endpoint limits to apply |
 | `RATE_LIMIT`, `RATE_LIMIT_WINDOW` | `10`, `60` | Global budget per client IP, shared across all paths |
@@ -161,13 +164,40 @@ Token lifetimes and key paths are defined in `src/core/config.py` (`AuthSettings
 
 ### 4. Apply migrations
 
+Skip this when running under Compose — `run.sh` applies them on every container start.
+
 ```bash
 uv run alembic upgrade head
 ```
 
 ### 5. Run
 
-Development (auto-reload):
+#### With Docker
+
+Brings up the backend together with Postgres and Redis:
+
+```bash
+docker compose up -d
+```
+
+Compose builds the image, waits for both services to report healthy, then runs `run.sh`,
+which applies migrations and starts the server on `http://localhost:8080`. If a migration
+fails the container exits instead of serving an unmigrated database.
+
+```bash
+docker compose logs -f backend
+docker compose down          # add -v to drop the Postgres volume
+```
+
+Two things the image deliberately does not contain: the JWT keys and `.env`. Keys are
+mounted read-only from `./keys`, so step 2 is still required; environment variables come
+from `.env` through `env_file`. `IS_DOCKERIZED` is forced to `true` for the backend
+service, which is what selects PostgreSQL over SQLite.
+
+#### Locally
+
+Requires PostgreSQL and Redis reachable on `localhost`, or `IS_DOCKERIZED=false` to fall
+back to SQLite. Development (auto-reload):
 
 ```bash
 uv run fastapi dev src/main.py
@@ -292,3 +322,5 @@ uv run pre-commit install
 - [ ] `/health` wired to your orchestrator's liveness/readiness probes
 - [ ] `ENABLE_REDIS=true` so rate limits are shared across workers, not per-process
 - [ ] Reverse proxy passes the real client IP, otherwise every request is rate-limited as one client
+- [ ] JWT keys mounted into the container, never baked into the image (`keys/` is in `.dockerignore`)
+- [ ] Container runs as a non-root user (the image currently does not create one)
