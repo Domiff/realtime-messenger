@@ -1,0 +1,52 @@
+services:
+  backend:
+    container_name: backend-sn
+    build:
+      dockerfile: Dockerfile
+    environment:
+      IS_DEBUG: "false"
+      IS_DOCKERIZED: "true"
+    env_file:
+      .env
+    command: ./run.sh
+    ports:
+      - "8080:8080"
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./keys:/app/keys:ro
+    restart: unless-stopped
+
+  pg:
+    container_name: pg-sn
+    image: postgres:16
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      start_period: 5s
+      interval: 1m
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    container_name: redis-sn
+    image: redis:8-alpine
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      start_period: 5s
+      interval: 1m
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
