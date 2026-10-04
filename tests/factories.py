@@ -14,7 +14,7 @@ def make_credentials():
         username=_faker.user_name(),
         password=_faker.password(),
         email=_faker.email(),
-    ).to_dict()
+    ).model_dump()
 
 
 def make_sub():
@@ -34,13 +34,13 @@ def make_user_schema():
 
 
 def make_chat():
-    return ChatIn(name=_faker.word(), type=ChatType.GROUP).to_dict()
+    return ChatIn(name=_faker.word(), type=ChatType.GROUP).model_dump()
 
 
 def make_message(chat_id: int | None = None, sender_id: int = 1):
     return MessageIn(
         text=_faker.sentence(), chat_id=chat_id, sender_id=sender_id
-    ).to_dict()
+    ).model_dump()
 
 
 def make_member(
@@ -48,4 +48,4 @@ def make_member(
     chat_id: int | None = None,
     role: ChatRole = ChatRole.MEMBER,
 ):
-    return MemberIn(user_id=user_id, chat_id=chat_id, role=role).to_dict()
+    return MemberIn(user_id=user_id, chat_id=chat_id, role=role).model_dump()

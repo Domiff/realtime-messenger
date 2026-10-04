@@ -37,4 +37,4 @@ async def get_current_user(
     except NoResultFound as e:
         logger.error("User does not exist", user_id=user_id)
         raise DoesNotExists() from e
-    return UserSchema.from_orm(user)
+    return UserSchema.model_validate(user)
