@@ -1,3 +1,8 @@
+import os
+
+os.environ["ENABLE_RATE_LIMITING"] = "False"
+os.environ["ENABLE_REDIS"] = "False"
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import StaticPool
