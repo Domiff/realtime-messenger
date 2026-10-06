@@ -22,7 +22,7 @@ def setup_admin(app: FastAPI) -> Admin:
         app,
         session_maker=new_session,
         base_url="/admin",
-        title="Social network admin",
+        title="Realtime Messenger admin",
         templates_dir="templates",
         authentication_backend=AdminAuth(secret_key=settings.admin.ADMIN_SECRET_KEY),
     )

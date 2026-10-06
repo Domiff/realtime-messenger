@@ -98,7 +98,7 @@ class SecuritySettings(AppSettings):
     RATE_LIMIT: int = 10
     RATE_LIMIT_WINDOW: int = 60
     ENABLE_REDIS: bool = True
-    REDIS_PREFIX: str = "social-network:guard:"
+    REDIS_PREFIX: str = "realtime-messenger:guard:"
     CUSTOM_LOG_FILE: str = "logs/security.log"
 
 

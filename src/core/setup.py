@@ -42,7 +42,7 @@ def create_app() -> FastAPI:
     logger.info("Creating FastAPI application")
 
     app = FastAPI(
-        title="Social Network",
+        title="Realtime Messenger",
         version="1",
         lifespan=lifespan,
         openapi_url="/openapi.json" if settings.app.IS_DEBUG else None,

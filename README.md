@@ -1,6 +1,6 @@
-# Social Network API
+# Realtime Messenger API
 
-A social network backend built with FastAPI: stateless JWT authentication (RS256) with access/refresh token rotation, a chat domain with membership, roles and realtime messaging over WebSockets, and a SQLAdmin back office.
+A realtime messenger backend built with FastAPI: stateless JWT authentication (RS256) with access/refresh token rotation, a chat domain with membership, roles and realtime messaging over WebSockets, and a SQLAdmin back office.
 
 ## Tech Stack
 
@@ -114,8 +114,8 @@ ALLOW_ORIGINS=["https://app.example.com"]
 ALLOW_METHODS=["GET","POST","PUT","PATCH","DELETE"]
 
 # PostgreSQL (used when IS_DOCKERIZED=true)
-POSTGRES_DB=social_network
-POSTGRES_USER=social_network
+POSTGRES_DB=realtime_messenger
+POSTGRES_USER=realtime_messenger
 POSTGRES_PASSWORD=<strong-password>
 POSTGRES_HOST=pg
 POSTGRES_PORT=5432
@@ -138,7 +138,7 @@ S3_ENDPOINT_URL=https://s3.example.com
 S3_ACCESS_KEY=<key>
 S3_SECRET_KEY=<secret>
 S3_REGION=us-east-1
-S3_BUCKET=social-network
+S3_BUCKET=realtime-messenger
 ```
 
 Configuration reference:
